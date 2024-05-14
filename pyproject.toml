@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gcode-imager"
+version = "0.0.1"
+authors = [
+  { name="Chris Ioannidis", email="chris.ioannidis23@imperial.ac.uk" },
+]
+description = "Create images from GCode files for 3D printing."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/acse-ci223/gcode-imager"
+Docs = "https://acse-ci223.github.io/gcode-imager/"
+Issues = "https://github.com/acse-ci223/gcode-imager/issues"

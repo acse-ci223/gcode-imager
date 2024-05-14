@@ -1,1 +1,1 @@
-from .grapher import Grapher  # noqa
+from .gcode2img import * # noqa
