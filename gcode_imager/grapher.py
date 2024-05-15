@@ -77,7 +77,7 @@ class Grapher:
         y_coords = []
         z_coords = []
 
-        current_position = {'X': 0, 'Y': 0, 'Z': 0}
+        current_position: dict[str, float] = {'X': 0.0, 'Y': 0.0, 'Z': 0.0}
 
         g_moves = self.gcode.moves()
 
@@ -89,9 +89,9 @@ class Grapher:
         for move in g_moves:
             if move.number == '0' or move.number == '1':
                 # Linear move
-                x = move.parameters.get('X', current_position['X'])
-                y = move.parameters.get('Y', current_position['Y'])
-                z = move.parameters.get('Z', current_position['Z'])
+                x = float(move.parameters.get('X', current_position['X']))
+                y = float(move.parameters.get('Y', current_position['Y']))
+                z = float(move.parameters.get('Z', current_position['Z']))
 
                 if not self.absolute_positioning:
                     x += current_position['X']
@@ -109,17 +109,17 @@ class Grapher:
             elif move.number == '2' or move.number == '3':
                 # Arc move (clockwise or counterclockwise)
                 # Simplified example, actual arc calculation would be more complex
-                x_center = move.parameters.get('I', 0) + current_position['X']
-                y_center = move.parameters.get('J', 0) + current_position['Y']
+                x_center = float(move.parameters.get('I', 0) + current_position['X'])
+                y_center = float(move.parameters.get('J', 0) + current_position['Y'])
                 radius = np.sqrt((current_position['X'] - x_center) ** 2 + (current_position['Y'] - y_center) ** 2)
                 start_angle = np.arctan2(current_position['Y'] - y_center, current_position['X'] - x_center)
-                end_angle = np.arctan2(move.parameters.get('Y', current_position['Y']) - y_center,
-                                        move.parameters.get('X', current_position['X']) - x_center)
+                end_angle = np.arctan2(float(move.parameters.get('Y', current_position['Y'])) - y_center,
+                                        float(move.parameters.get('X', current_position['X'])) - x_center)
                 num_points = 100
                 angles = np.linspace(start_angle, end_angle, num_points)
                 arc_x = x_center + radius * np.cos(angles)
                 arc_y = y_center + radius * np.sin(angles)
-                arc_z = np.linspace(current_position['Z'], move.parameters.get('Z', current_position['Z']), num_points)
+                arc_z = np.linspace(current_position['Z'], float(move.parameters.get('Z', current_position['Z'])), num_points)
 
                 x_coords.extend(arc_x)
                 y_coords.extend(arc_y)
@@ -154,9 +154,9 @@ class Grapher:
 
             elif move.number == '92':
                 # Set position
-                current_position['X'] = move.parameters.get('X', current_position['X'])
-                current_position['Y'] = move.parameters.get('Y', current_position['Y'])
-                current_position['Z'] = move.parameters.get('Z', current_position['Z'])
+                current_position['X'] = float(move.parameters.get('X', current_position['X']))
+                current_position['Y'] = float(move.parameters.get('Y', current_position['Y']))
+                current_position['Z'] = float(move.parameters.get('Z', current_position['Z']))
 
         # Add line traces to the plot
         self.fig.add_trace(go.Scatter3d(

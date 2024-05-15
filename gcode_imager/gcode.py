@@ -12,7 +12,7 @@ class Move:
         self.type = self.__command[0].strip()
         self.number = self.__command[1:].split(" ", 1)[0].strip()
         param = self.__command[1:].split(" ", 1)[1:]
-        self.parameters = {}
+        self.parameters: dict[str, float] = {}
         if param:
             if ":" in param[0]:
                 param = param[0].split(":")
