@@ -1,12 +1,11 @@
+from functools import cache
 import plotly.graph_objects as go
 from PIL import Image
 import numpy as np
 import io
-import os
 from .gcode import GCode
 
 __all__ = ['Grapher']
-
 
 class Grapher:
     def __init__(self, gcode: GCode):
@@ -14,8 +13,11 @@ class Grapher:
         self.fig = None
         self.dimensions = {"X": 0, "Y": 0, "Z": 0}
         self.absolute_positioning = True
+        self.x_coords = []
+        self.y_coords = []
+        self.z_coords = []
 
-    def trace(self, percentage: float = 1.0):
+    def trace(self):
         # Create a 3D plot
         self.fig = go.Figure()
         self.fig.update_scenes(aspectmode='cube')
@@ -73,18 +75,13 @@ class Grapher:
                 b=10, t=10))
 
         # Read G-code and create line traces for each move command of type G
-        x_coords = []
-        y_coords = []
-        z_coords = []
-
         current_position: dict[str, float] = {'X': 0.0, 'Y': 0.0, 'Z': 0.0}
 
         g_moves = self.gcode.moves()
 
-        # get percentage of moves
-        total_moves = len(g_moves)
-        pct = int(total_moves * percentage)
-        g_moves = g_moves[:pct]
+        self.x_coords = [current_position['X']]
+        self.y_coords = [current_position['Y']]
+        self.z_coords = [current_position['Z']]
 
         for move in g_moves:
             if move.number == '0' or move.number == '1':
@@ -98,9 +95,9 @@ class Grapher:
                     y += current_position['Y']
                     z += current_position['Z']
 
-                x_coords.extend([current_position['X'], x])
-                y_coords.extend([current_position['Y'], y])
-                z_coords.extend([current_position['Z'], z])
+                self.x_coords.append(x)
+                self.y_coords.append(y)
+                self.z_coords.append(z)
 
                 current_position['X'] = x
                 current_position['Y'] = y
@@ -108,22 +105,21 @@ class Grapher:
 
             elif move.number == '2' or move.number == '3':
                 # Arc move (clockwise or counterclockwise)
-                # Simplified example, actual arc calculation would be more complex
                 x_center = float(move.parameters.get('I', 0) + current_position['X'])
                 y_center = float(move.parameters.get('J', 0) + current_position['Y'])
                 radius = np.sqrt((current_position['X'] - x_center) ** 2 + (current_position['Y'] - y_center) ** 2)
                 start_angle = np.arctan2(current_position['Y'] - y_center, current_position['X'] - x_center)
                 end_angle = np.arctan2(float(move.parameters.get('Y', current_position['Y'])) - y_center,
-                                        float(move.parameters.get('X', current_position['X'])) - x_center)
+                                       float(move.parameters.get('X', current_position['X'])) - x_center)
                 num_points = 100
                 angles = np.linspace(start_angle, end_angle, num_points)
                 arc_x = x_center + radius * np.cos(angles)
                 arc_y = y_center + radius * np.sin(angles)
                 arc_z = np.linspace(current_position['Z'], float(move.parameters.get('Z', current_position['Z'])), num_points)
 
-                x_coords.extend(arc_x)
-                y_coords.extend(arc_y)
-                z_coords.extend(arc_z)
+                self.x_coords.extend(arc_x)
+                self.y_coords.extend(arc_y)
+                self.z_coords.extend(arc_z)
 
                 current_position['X'] = arc_x[-1]
                 current_position['Y'] = arc_y[-1]
@@ -139,9 +135,9 @@ class Grapher:
 
             elif move.number == '28':
                 # Move to origin
-                x_coords.extend([current_position['X'], 0])
-                y_coords.extend([current_position['Y'], 0])
-                z_coords.extend([current_position['Z'], 0])
+                self.x_coords.append(0)
+                self.y_coords.append(0)
+                self.z_coords.append(0)
                 current_position = {'X': 0, 'Y': 0, 'Z': 0}
 
             elif move.number == '90':
@@ -158,22 +154,30 @@ class Grapher:
                 current_position['Y'] = float(move.parameters.get('Y', current_position['Y']))
                 current_position['Z'] = float(move.parameters.get('Z', current_position['Z']))
 
+    def render(self, percentage: float = 1.0) -> Image.Image:
+        if self.fig is None:
+            raise RuntimeError("You need to call trace() before render().")
+
+        # Get the percentage of coordinates to plot
+        pct = int(len(self.x_coords) * percentage)
+        x_coords = self.x_coords[:pct]
+        y_coords = self.y_coords[:pct]
+        z_coords = self.z_coords[:pct]
+
         # Add line traces to the plot
         self.fig.add_trace(go.Scatter3d(
             x=x_coords, y=y_coords, z=z_coords,
             mode='lines',
             line=dict(color='red', width=0.017),
+            showlegend=False
         ))
-
-    def render(self) -> Image.Image:
-        if self.fig is None:
-            raise RuntimeError("You need to call trace() before render().")
 
         # Save the plot to a bytes buffer
         buf = io.BytesIO()
-        self.fig.write_image(buf, format='png', scale=6, width=300, height=300)
+        self.fig.write_image(buf, format='png', scale=3, width=500, height=500)
         buf.seek(0)
 
         # Create a PIL image from the bytes buffer
         image = Image.open(buf)
+        buf.close()
         return image

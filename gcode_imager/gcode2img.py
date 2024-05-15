@@ -1,13 +1,12 @@
+from functools import cache
 from io import BytesIO
 import os
-
 from PIL import Image
-
+from concurrent.futures import ThreadPoolExecutor
 from .gcode import GCode
 from .grapher import Grapher
 
 __all__ = ["gcode2img"]
-
 
 class gcode2img:
     def __init__(self):
@@ -24,7 +23,7 @@ class gcode2img:
             elif isinstance(gcode, GCode):
                 self.gcode = gcode
             else:
-                raise ValueError("gcode must be a new-line-seperated string or GCode object")
+                raise ValueError("gcode must be a new-line-separated string or GCode object")
         elif filename:
             base_dir = base_dir or os.getcwd()
             full_path = os.path.join(base_dir, filename)
@@ -35,21 +34,25 @@ class gcode2img:
                 raise FileNotFoundError(f"File {full_path} not found") from exc
 
         grapher = Grapher(self.gcode)
+        grapher.trace()
+
+        @cache
+        def generate_frame(i):
+            print(f"Generating frame {i + 1} of {frames}")
+            return grapher.render(percentage=(i + 1) / frames)
+
         output = BytesIO()
         if gif:
-            gif_frames: list[Image.Image] = []
-            for i in range(frames):
-                grapher.trace(percentage=i / frames)
-                frame_img = grapher.render()
-                gif_frames.append(frame_img.copy())
+            num_cores = os.cpu_count()
+            with ThreadPoolExecutor(max_workers=num_cores) as executor:
+                gif_frames = list(executor.map(generate_frame, range(frames)))
 
             gif_frames[0].save(output, format="GIF", save_all=True,
                                append_images=gif_frames[1:], loop=0)
-            output.seek(0)
         else:
-            grapher.trace()
             img = grapher.render()
             img.save(output, format="PNG")
-            output.seek(0)
+
+        output.seek(0)
 
         return output
