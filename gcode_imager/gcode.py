@@ -84,7 +84,9 @@ class GCode:
     def set_moves(self, moves: list):
         self.__moves = moves
 
-    def moves(self):
+    def moves(self, type: str | None = None):
+        if type:
+            return [move for move in self.__moves if move.type == type]
         return self.__moves
 
     def move_types(self):
