@@ -158,10 +158,6 @@ class Grapher:
                 current_position['Y'] = move.parameters.get('Y', current_position['Y'])
                 current_position['Z'] = move.parameters.get('Z', current_position['Z'])
 
-            elif move.number == '94':
-                # Set feedrate, no action needed
-                pass
-
         # Add line traces to the plot
         self.fig.add_trace(go.Scatter3d(
             x=x_coords, y=y_coords, z=z_coords,
