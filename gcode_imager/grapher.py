@@ -129,10 +129,6 @@ class Grapher:
                 current_position['Y'] = arc_y[-1]
                 current_position['Z'] = arc_z[-1]
 
-            elif move.number == '4':
-                # Dwell command, no action needed
-                pass
-
             elif move.number == '20':
                 # Set units to inches
                 self.units = 'inches'
