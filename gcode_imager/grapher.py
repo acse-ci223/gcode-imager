@@ -162,7 +162,7 @@ class Grapher:
         self.fig.add_trace(go.Scatter3d(
             x=x_coords, y=y_coords, z=z_coords,
             mode='lines',
-            line=dict(color='red', width=4),
+            line=dict(color='red', width=0.1),
         ))
 
     def render(self) -> Image.Image:
