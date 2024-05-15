@@ -1,10 +1,8 @@
-from matplotlib import pyplot as plt
-from matplotlib import axes, figure
-import matplotlib.patheffects as pe
+import plotly.graph_objects as go
 from PIL import Image
 import numpy as np
 import io
-
+import os
 from .gcode import GCode
 
 __all__ = ['Grapher']
@@ -13,28 +11,66 @@ __all__ = ['Grapher']
 class Grapher:
     def __init__(self, gcode: GCode):
         self.gcode = gcode
-        self.fig: figure.Figure | None = None
-        self.ax: axes.Axes | None = None
+        self.fig = None
         self.dimensions = {"X": 0, "Y": 0, "Z": 0}
+        self.absolute_positioning = True
 
     def trace(self, percentage: float = 1.0):
         # Create a 3D plot
-        self.fig = plt.figure()
-        self.ax = self.fig.add_subplot(111, projection='3d')
+        self.fig = go.Figure()
+        self.fig.update_scenes(aspectmode='cube')
+
+        camera = dict(
+            up=dict(x=0, y=0, z=1),
+            center=dict(x=0, y=0, z=0),
+            eye=dict(x=1.5, y=1.5, z=1.25)
+        )
+
+        self.fig.update_layout(scene_camera=camera)
 
         conf = self.gcode.configs()
-        dimentions: str = conf.get("printable_area")
-        dimentions = dimentions.split(",")[2].strip()
-        x, y = dimentions.split("x")
+        dimensions: str = conf.get("printable_area")
+        dimensions = dimensions.split(",")[2].strip()
+        x, y = dimensions.split("x")
         z = conf.get("printable_height").strip()
 
         self.dimensions["X"] = float(x)
         self.dimensions["Y"] = float(y)
         self.dimensions["Z"] = float(z)
 
-        self.ax.set_xlim(0, self.dimensions["X"])
-        self.ax.set_ylim(0, self.dimensions["Y"])
-        self.ax.set_zlim(0, self.dimensions["Z"])
+        self.fig.update_layout(scene=dict(
+            xaxis=dict(range=[0, self.dimensions["X"]],
+                       showticklabels=False,
+                       showgrid=True, zeroline=True),
+            yaxis=dict(range=[0, self.dimensions["Y"]],
+                       showticklabels=False,
+                       showgrid=True, zeroline=True),
+            zaxis=dict(range=[0, self.dimensions["Z"]],
+                       showticklabels=False,
+                       showgrid=True, zeroline=True)
+        ))
+
+        self.fig.update_layout(
+            paper_bgcolor='rgb(115, 115, 115)',
+            scene=dict(
+                xaxis=dict(
+                    backgroundcolor="rgb(185, 185, 185)",
+                    gridcolor="black",
+                    showbackground=True,
+                    zerolinecolor="black",),
+                yaxis=dict(
+                    backgroundcolor="rgb(185, 185, 185)",
+                    gridcolor="black",
+                    showbackground=True,
+                    zerolinecolor="white"),
+                zaxis=dict(
+                    backgroundcolor="rgb(185, 185, 185)",
+                    gridcolor="black",
+                    showbackground=True,
+                    zerolinecolor="black",),),
+            margin=dict(
+                r=10, l=10,
+                b=10, t=10))
 
         # Read G-code and create line traces for each move command of type G
         x_coords = []
@@ -43,9 +79,9 @@ class Grapher:
 
         current_position = {'X': 0, 'Y': 0, 'Z': 0}
 
-        g_moves = self.gcode.moves("G")
+        g_moves = self.gcode.moves()
 
-        # get percentage of of moves
+        # get percentage of moves
         total_moves = len(g_moves)
         pct = int(total_moves * percentage)
         g_moves = g_moves[:pct]
@@ -130,22 +166,12 @@ class Grapher:
                 # Set feedrate, no action needed
                 pass
 
-        # Plot the line traces
-        self.ax.plot(x_coords, y_coords, z_coords, antialiased=False, color='red',
-                     linewidth=1.0, alpha=1.0, zorder=1,
-                     path_effects=[pe.SimpleLineShadow(shadow_color='black'), pe.Normal()])
-        # self.ax.legend()
-        self.ax.set_xlabel('')
-        self.ax.set_ylabel('')
-        self.ax.set_zlabel('')
-        self.ax.set_xticks([])
-        self.ax.set_yticks([])
-        self.ax.set_zticks([])
-        self.ax.set_aspect('equal')
-        self.ax.set_facecolor((0.47, 0.47, 0.47))
-
-        self.ax.view_init(elev=30, azim=45+int(360*percentage))
-        # plt.show()
+        # Add line traces to the plot
+        self.fig.add_trace(go.Scatter3d(
+            x=x_coords, y=y_coords, z=z_coords,
+            mode='lines',
+            line=dict(color='red', width=4),
+        ))
 
     def render(self) -> Image.Image:
         if self.fig is None:
@@ -153,17 +179,9 @@ class Grapher:
 
         # Save the plot to a bytes buffer
         buf = io.BytesIO()
-        self.fig.savefig(buf, format='png',
-                         bbox_inches='tight',
-                         facecolor='black',
-                         dpi=500,
-                         edgecolor='black',
-                         pad_inches=0,
-                         transparent=False)
+        self.fig.write_image(buf, format='png', scale=1, width=300, height=300)
         buf.seek(0)
 
         # Create a PIL image from the bytes buffer
         image = Image.open(buf)
-        # buf.close()
-        plt.close(self.fig)
         return image
