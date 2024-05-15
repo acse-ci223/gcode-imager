@@ -162,7 +162,7 @@ class Grapher:
         self.fig.add_trace(go.Scatter3d(
             x=x_coords, y=y_coords, z=z_coords,
             mode='lines',
-            line=dict(color='red', width=0.1),
+            line=dict(color='red', width=0.017),
         ))
 
     def render(self) -> Image.Image:
@@ -171,7 +171,7 @@ class Grapher:
 
         # Save the plot to a bytes buffer
         buf = io.BytesIO()
-        self.fig.write_image(buf, format='png', scale=1, width=300, height=300)
+        self.fig.write_image(buf, format='png', scale=6, width=300, height=300)
         buf.seek(0)
 
         # Create a PIL image from the bytes buffer
